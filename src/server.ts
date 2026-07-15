@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
@@ -8,7 +9,7 @@ const app = express();
 const port = 8080;
 
 app.use(morgan("dev"));
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: process.env.ORIGIN ?? "http://localhost:5173" }));
 app.use(express.json());
 app.use("/images", express.static("src/images"));
 
