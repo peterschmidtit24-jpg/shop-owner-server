@@ -6,3 +6,5 @@ dist/
 !.env.example
 
 /src/generated/prisma
+/src/images
+ VERCEL_DEPLOYMENT.md

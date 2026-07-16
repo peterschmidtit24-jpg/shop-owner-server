@@ -388,6 +388,7 @@ class ApiError extends Error {
 }
 
 ordersRouter.get("/", getOrders);
+ordersRouter.post("/", simulateOrder);
 ordersRouter.post("/simulate", simulateOrder);
 ordersRouter.get("/:orderId", getOrderById);
 ordersRouter.patch("/:orderId", updateOrder);
