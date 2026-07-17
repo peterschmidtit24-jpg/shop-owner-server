@@ -1,10 +1,23 @@
+/**
+ * Customer API routes.
+ *
+ * Supports customer listing and profile updates. Customer creation is handled
+ * during order creation so a standalone create endpoint is not required.
+ */
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 
 const customersRouter = Router();
+// Validate UUID route parameters and basic email syntax at the API boundary.
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Returns all customers with their number of orders, newest first.
+ *
+ * @param _req - Express request; no request data is required.
+ * @param res - Response used to return the customer list or a server error.
+ */
 async function getCustomers(_req: Request, res: Response) {
   try {
     const customers = await prisma.customer.findMany({
@@ -21,6 +34,14 @@ async function getCustomers(_req: Request, res: Response) {
   }
 }
 
+/**
+ * Partially updates a customer's name and/or email address.
+ * Empty email values are normalized to `null`, and Prisma's unique constraint
+ * prevents two customers from sharing the same non-null email.
+ *
+ * @param req - Request containing `params.customerId` and `name` and/or `email`.
+ * @param res - Response used to return the updated customer or a specific error.
+ */
 async function updateCustomer(req: Request, res: Response) {
   const customerId = req.params.customerId;
 
@@ -79,6 +100,12 @@ async function updateCustomer(req: Request, res: Response) {
   }
 }
 
+/**
+ * Checks whether an unknown Prisma failure contains a particular error code.
+ *
+ * @param error - Unknown value caught from a database operation.
+ * @param code - Prisma error code to match.
+ */
 function hasPrismaErrorCode(error: unknown, code: string): error is { code: string } {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }

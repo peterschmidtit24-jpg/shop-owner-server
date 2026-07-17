@@ -1,3 +1,9 @@
+/**
+ * Order API routes.
+ *
+ * Coordinates orders with products and customers. Stock-changing operations
+ * use database transactions so inventory and order data remain consistent.
+ */
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 import {
@@ -6,10 +12,18 @@ import {
 } from "../generated/prisma/enums.js";
 
 const ordersRouter = Router();
+// Derive accepted status strings from Prisma's generated enum.
 const orderStatuses = Object.values(OrderStatus) as string[];
+// Validate public IDs before passing them to UUID-backed database columns.
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Returns all orders, including their related product and customer, newest first.
+ *
+ * @param _req - Express request; no request data is required.
+ * @param res - Response used to return the orders or a server error.
+ */
 async function getOrders(_req: Request, res: Response) {
   try {
     const orders = await prisma.order.findMany({
@@ -27,6 +41,12 @@ async function getOrders(_req: Request, res: Response) {
   }
 }
 
+/**
+ * Returns one fully populated order by UUID.
+ *
+ * @param req - Request containing `params.orderId`.
+ * @param res - Response used for the order or an appropriate 400/404/500 error.
+ */
 async function getOrderById(req: Request, res: Response) {
   const orderId = req.params.orderId;
 
@@ -54,6 +74,17 @@ async function getOrderById(req: Request, res: Response) {
   }
 }
 
+/**
+ * Creates an order and reduces product stock atomically.
+ *
+ * An existing customer can be selected with `customerId`. Otherwise the
+ * function reuses a customer by email or creates a new customer. The order
+ * total is calculated from the current product price.
+ *
+ * @param req - Body containing `productId`, positive `quantity`, and either a
+ * `customerId` or customer name with an optional email.
+ * @param res - Response used to return the created order with HTTP 201.
+ */
 async function simulateOrder(req: Request, res: Response) {
   if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
     return res.status(400).json({ message: "A JSON body is required" });
@@ -175,6 +206,13 @@ async function simulateOrder(req: Request, res: Response) {
   }
 }
 
+/**
+ * Changes an order's workflow status and restores stock when it is cancelled.
+ * Cancelled orders cannot be reopened, protecting inventory consistency.
+ *
+ * @param req - Request containing `params.orderId` and `body.status`.
+ * @param res - Response used to return the updated order or a validation/conflict error.
+ */
 async function updateOrderStatus(req: Request, res: Response) {
   const orderId = req.params.orderId;
   const status = req.body?.status;
@@ -237,6 +275,13 @@ async function updateOrderStatus(req: Request, res: Response) {
   }
 }
 
+/**
+ * Changes the quantity of a pending order and reconciles product stock.
+ * Increasing quantity reserves more stock; decreasing it returns the difference.
+ *
+ * @param req - Request containing `params.orderId` and a positive `body.quantity`.
+ * @param res - Response used to return the recalculated order or an error.
+ */
 async function updateOrder(req: Request, res: Response) {
   const orderId = req.params.orderId;
   const quantity = req.body?.quantity;
@@ -319,6 +364,14 @@ async function updateOrder(req: Request, res: Response) {
   }
 }
 
+/**
+ * Deletes a pending or cancelled order.
+ * Pending-order stock is restored, while shipped and delivered orders are
+ * retained as operational history.
+ *
+ * @param req - Request containing `params.orderId`.
+ * @param res - Response used to return the deleted order or a conflict error.
+ */
 async function deleteOrder(req: Request, res: Response) {
   const orderId = req.params.orderId;
 
@@ -378,7 +431,16 @@ async function deleteOrder(req: Request, res: Response) {
   }
 }
 
+/**
+ * Expected business-rule error that carries an HTTP status code.
+ * Throwing this inside a transaction rolls the transaction back while allowing
+ * the route handler to return a precise client-facing response.
+ */
 class ApiError extends Error {
+  /**
+   * @param status - HTTP status that represents the failure.
+   * @param message - Safe explanation returned to the API client.
+   */
   constructor(
     public readonly status: number,
     message: string,
@@ -387,6 +449,7 @@ class ApiError extends Error {
   }
 }
 
+// POST / and POST /simulate intentionally expose the same creation behavior.
 ordersRouter.get("/", getOrders);
 ordersRouter.post("/", simulateOrder);
 ordersRouter.post("/simulate", simulateOrder);

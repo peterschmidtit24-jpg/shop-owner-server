@@ -1,8 +1,20 @@
+/**
+ * Product API routes.
+ *
+ * Provides CRUD operations for the shop catalogue and validates incoming
+ * values before they are written to PostgreSQL through Prisma.
+ */
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../db/prisma.js";
 
 const productsRouter = Router();
 
+/**
+ * Returns every product, newest first.
+ *
+ * @param _req - Express request; this endpoint does not use request data.
+ * @param res - Express response used to return the product list or an error.
+ */
 async function getProducts(_req: Request, res: Response) {
   try {
     const products = await prisma.product.findMany({
@@ -16,8 +28,13 @@ async function getProducts(_req: Request, res: Response) {
   }
 }
 
+/**
+ * Returns one product selected by its route parameter.
+ *
+ * @param req - Request containing `params.productId`.
+ * @param res - Response used for the product, validation error, or not-found result.
+ */
 async function getProductById(req: Request, res: Response) {
-
   const productId = req.params.productId;
 
   if (typeof productId !== "string") {
@@ -42,6 +59,13 @@ async function getProductById(req: Request, res: Response) {
   }
 }
 
+/**
+ * Creates a catalogue product after validating all required and optional fields.
+ *
+ * @param req - Request body with `name`, `price`, `stock`, and optional
+ * `description` and `imageUrl` values.
+ * @param res - Response used to return the created product with HTTP 201.
+ */
 async function createProduct(req: Request, res: Response) {
   const { name, description, price, stock, imageUrl } = req.body;
 
@@ -91,6 +115,13 @@ async function createProduct(req: Request, res: Response) {
   }
 }
 
+/**
+ * Partially updates an existing product.
+ *
+ * @param req - Request containing `params.productId` and one or more editable
+ * product fields in the JSON body.
+ * @param res - Response used to return the updated product or a specific error.
+ */
 async function updateProduct(req: Request, res: Response) {
   const productId = req.params.productId;
 
@@ -177,6 +208,13 @@ async function updateProduct(req: Request, res: Response) {
   }
 }
 
+/**
+ * Deletes a product when it is not referenced by an order.
+ *
+ * @param req - Request containing `params.productId`.
+ * @param res - Response used to return the deleted product, 404, or a 409
+ * conflict when relational data prevents deletion.
+ */
 async function deleteProduct(req: Request, res: Response) {
   const productId = req.params.productId;
 
@@ -209,6 +247,13 @@ async function deleteProduct(req: Request, res: Response) {
   }
 }
 
+/**
+ * Narrows an unknown Prisma error to an object with a requested error code.
+ * This keeps route error handling independent of generated Prisma error classes.
+ *
+ * @param error - Unknown value caught from a Prisma operation.
+ * @param code - Prisma code to compare, for example `P2025` or `P2003`.
+ */
 function hasPrismaErrorCode(
   error: unknown,
   code: string,
@@ -221,6 +266,7 @@ function hasPrismaErrorCode(
   );
 }
 
+// Route order maps HTTP operations to their catalogue handlers.
 productsRouter.get("/", getProducts);
 productsRouter.get("/:productId", getProductById);
 productsRouter.post("/", createProduct);
