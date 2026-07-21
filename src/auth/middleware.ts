@@ -17,9 +17,6 @@ export async function requireConfirmedOwner(req: Request, res: Response, next: N
     if (session) await prisma.ownerSession.delete({ where: { id: session.id } });
     return res.status(401).json({ message: "Session expired" });
   }
-  if (!session.owner.emailVerifiedAt) {
-    return res.status(403).json({ message: "Confirm your email before continuing" });
-  }
   if (!session.owner.approved) {
     return res.status(403).json({ message: "This owner account is not approved" });
   }
