@@ -12,10 +12,15 @@ export function hashToken(token: string) {
 }
 
 export function sessionCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure: isProduction,
+    // The Vercel client and API use different hostnames, so production
+    // requests need an explicitly cross-site cookie. Local development stays
+    // on Lax because it runs over HTTP.
+    sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
     maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   };
