@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { compare, hash } from "bcryptjs";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { prisma } from "../db/prisma.js";
 import {
   createToken,
